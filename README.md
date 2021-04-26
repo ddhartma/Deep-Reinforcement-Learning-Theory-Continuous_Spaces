@@ -2,6 +2,7 @@
 [image2]: assets/rl_overview.png "image2"
 [image3]: assets/discrete_spaces.png "image3"
 [image4]: assets/continuous_spaces.png "image4"
+[image5]: assets/non_uniform_discretization.png "image5"
 
 
 # Deep Reinforcement Learning Theory - RL in Continuous Spaces
@@ -9,6 +10,8 @@
 ## Content
 - [Introduction](#intro)
 - [Problem analysis](#problem_analysis)
+- [Discrete vs. Continuous Spaces](#discrete_cont)
+- [Discretization](#discretization)
 - [Acknowledgments](#Acknowledgments)
 - [Further Links](#Further_Links)
 
@@ -17,7 +20,7 @@
 - Reinforcement learning is **learning** what to do — **how to map situations to actions** — so as **to maximize a numerical reward** signal. The learner is not told which actions to take, but instead must discover which actions yield the most reward by trying them. (Sutton and Barto, [Reinforcement Learning: An Introduction](http://incompleteideas.net/book/the-book.html))
 - Deep reinforcement learning refers to approaches where the knowledge is represented with a deep neural network
 
-## Problem analysis
+## Problem analysis <a name="Setup_Instructions"></a>
 - So far all reinforcement learning environments were implemented where the number of states and actions is limited. 
 - With small, **finite Markov Decision Processes (MDPs)**, it is possible to represent the **action-value function** with a **table**, **dictionary**, or other finite structure.
 
@@ -30,7 +33,7 @@
 
     ![image2]
 
-## Discrete vs. Continuous Spaces
+## Discrete vs. Continuous Spaces <a name="discrete_cont"></a>
 ### Discrete Spaces
 - Discrete spaces allow us to represent any function of states and actions as a **dictionary** or **look-up table**.
 - Consider the state **value function V** which is a **mapping** from the **set of states** to a **real number**.
@@ -40,7 +43,7 @@
 
     ![image3]
 
-### Contnuous Spaces
+### Continuous Spaces <a name="continuous_spaces"></a>
 - A contnuous space can take a range of values, typically real numbers.
 - Discrete visualization of states: real number, bar chart
 - Contnuous visualization of states:  vectore, density plot 
@@ -49,61 +52,15 @@
 
     ![image4]
 
-let's try to build some intuition for why continuous state spaces are important.
+## Discretization <a name="discretization"></a> 
+- Discretization converts a **continuous space into a discrete one**.
+- States and actions can be discretized
+- See standard gridworld with obstacles below. Agent could think,
+there is no path across these obstacles.
+- **Non-Uniform** Discretization: Vary the grid according to these obstacles, then a feasible path for the agent is possible.
+- An alternate approach would be to divide up the grid into smaller cells where required.
 
-Where do they even come from?
-
-When you consider a high-level decision making task like playing chess,
-you can often think of the set of possible states as discrete.
-
-What piece is in which square on the board.
-
-You don't need to bother with precisely where
-each piece is located within its square or which way it is facing.
-
-Although these details are available for you to inspect and wonder about,
-why is your knight staring at my queen.
-
-These things are not relevant to the problem at hand
-and you can abstract them away in your model of the game.
-
-In general, grid-based worlds are very popular in reinforcement learning.
-
-They give you a glimpse at how agents might act in spatial environments.
-
-But real physical spaces are not always neatly divided up into grids.
-
-There is no cell 5-3 for the vacuum cleaner robot to go to.
-
-It has to chart a course from its current position to say 2.5
-meters from the west wall by 1.8 meters from the north wall.
-
-It also has to keep track of its heading and
-turn smoothly to face the direction it wants to move in.
-
-These are all real numbers that the agent may need
-to process and represent as part of the state.
-
-Actions too can be continuous.
-
-Take for example a robot that plays darts.
-
-It has to set the height and angle it wants to release the dart at,
-choose an appropriate level of power with which to throw et cetera.
-
-Even small differences in these values can have
-a large impact on where the dart ultimately lands on the board.
-
-In general, most actions that need to take place
-in a physical environment are continuous in nature.
-
-Clearly, we need to modify our representation or
-algorithms or both to accommodate continuous spaces.
-
-The two main strategies we'll be looking at are
-Discretization and Function Approximation.
-
-
+    ![image5]
 
 ## Setup Instructions <a name="Setup_Instructions"></a>
 The following is a brief set of instructions on setting up a cloned repository.
