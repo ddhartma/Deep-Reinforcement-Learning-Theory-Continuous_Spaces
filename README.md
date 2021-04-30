@@ -62,6 +62,10 @@ there is no path across these obstacles.
 
     ![image5]
 
+### Implementation
+- Open Jupyter Notebook ```discretization.ipynb```
+
+
 ## Setup Instructions <a name="Setup_Instructions"></a>
 The following is a brief set of instructions on setting up a cloned repository.
 
