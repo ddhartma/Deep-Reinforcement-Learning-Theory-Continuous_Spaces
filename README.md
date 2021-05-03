@@ -5,7 +5,10 @@
 [image5]: assets/non_uniform_discretization.png "image5"
 [image6]: assets/scores_plt.png "image6"
 [image7]: assets/scores_plt_test.png "image7"
-
+[image8]: assets/tile_coding.png "image8"
+[image9]: assets/coarse_coding.png "image9"
+[image10]: assets/function_approximation.png "image10"
+[image11]: assets/tile_coding_plot.png "image11"
 
 # Deep Reinforcement Learning Theory - RL in Continuous Spaces
 
@@ -14,6 +17,9 @@
 - [Problem analysis](#problem_analysis)
 - [Discrete vs. Continuous Spaces](#discrete_cont)
 - [Discretization](#discretization)
+- [Tile Coding](#tile_coding)
+- [Coarse Coding](#coarse_coding)
+- [Function Approximation](#function_approximation)
 - [Acknowledgments](#Acknowledgments)
 - [Further Links](#Further_Links)
 
@@ -426,6 +432,553 @@ there is no path across these obstacles.
     ```
     ![image7]
 
+
+## Tile Coding <a name="tile_coding"></a>
+- overlay multiple grids or tilings on top of the space,
+each slightly offset from each other.
+- Now, any position S in the state space can be
+coarsely identified by the tiles that it activates.
+- The tile coding algorithm in turn updates these weights iteratively.
+- This ensures nearby locations that share tiles also share some component of state value, effectively smoothing the learned value function.
+- Better: Adaptive tile coding, which starts with fairly large tiles, and divides each tile into two whenever appropriate.
+- Split tile when agent does no longer learn much with the current representation (value function isn't changing).
+- Stop when some upper limit on the number of splits or some max iterations are reached
+- Tile to split: the one with the greatest effect on the value function. For this, we need to keep track of subtiles and their projected weights. Then, we can pick the tile with the greatest difference between subtile weights.
+
+    ![image8]
+- Open Jupyter notebook ```tile_coding.ipynb```
+    ```
+    # Import common libraries
+    import sys
+    import gym
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    # Set plotting options
+    %matplotlib inline
+    plt.style.use('ggplot')
+    np.set_printoptions(precision=3, linewidth=120)
+    ```
+    ### Create an environment
+    ```
+    # Create an environment
+    env = gym.make('Acrobot-v1')
+    env.seed(505);
+
+    # Explore state (observation) space
+    print("State space:", env.observation_space)
+    print("- low:", env.observation_space.low)
+    print("- high:", env.observation_space.high)
+
+    # Explore action space
+    print("Action space:", env.action_space)
+    ```
+    ### Tiling
+    ```
+    def create_tiling_grid(low, high, bins=(10, 10), offsets=(0.0, 0.0)):
+        """Define a uniformly-spaced grid that can be used for tile-coding a space.
+        
+        Inputs:
+        ------------
+            low - (array_like) lower bounds for each dimension of the continuous space.
+            high - (array_like) upper bounds for each dimension of the continuous space.
+            bins - (tuple) number of bins along each corresponding dimension.
+            offsets - (tuple) split points for each dimension should be offset by these values.
+        
+        Outputs:
+        ------------
+            grid - (list of array_like) list of arrays containing split points for each dimension.
+        """
+        
+        grid = [np.linspace(low[dim], high[dim], bins[dim] + 1)[1:-1] + offsets[dim] for dim in range(len(bins))]
+        print("Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>")
+        for l, h, b, o, splits in zip(low, high, bins, offsets, grid):
+            print("    [{}, {}] / {} + ({}) => {}".format(l, h, b, o, splits))
+        return grid
+
+
+    low = [-1.0, -5.0]
+    high = [1.0, 5.0]
+    create_tiling_grid(low, high, bins=(10, 10), offsets=(-0.1, 0.5))  # [test]
+
+    RESULT:
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 10 + (-0.1) => [-0.9 -0.7 -0.5 -0.3 -0.1  0.1  0.3  0.5  0.7]
+        [-5.0, 5.0] / 10 + (0.5) => [-3.5 -2.5 -1.5 -0.5  0.5  1.5  2.5  3.5  4.5]
+
+    [array([-0.9, -0.7, -0.5, -0.3, -0.1,  0.1,  0.3,  0.5,  0.7]),
+    array([-3.5, -2.5, -1.5, -0.5,  0.5,  1.5,  2.5,  3.5,  4.5])]
+    ```
+    ```
+    def create_tilings(low, high, tiling_specs):
+        """Define multiple tilings using the provided specifications.
+
+        INPUTS:
+        ------------
+            low - (array_like) lower bounds for each dimension of the continuous space.
+            high - (array_like) upper bounds for each dimension of the continuous space.
+            
+        OUTPUTS:
+        ------------
+            tilings - (list) list of tilings (grids), each produced by create_tiling_grid().
+        """
+        
+        return [create_tiling_grid(low, high, bins, offsets) for bins, offsets in tiling_specs]
+
+
+    # Tiling specs: [(<bins>, <offsets>), ...]
+    tiling_specs = [((10, 10), (-0.066, -0.33)),
+                    ((10, 10), (0.0, 0.0)),
+                    ((10, 10), (0.066, 0.33))]
+    tilings = create_tilings(low, high, tiling_specs)
+
+    RESULT:
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 10 + (-0.066) => [-0.866 -0.666 -0.466 -0.266 -0.066  0.134  0.334  0.534  0.734]
+        [-5.0, 5.0] / 10 + (-0.33) => [-4.33 -3.33 -2.33 -1.33 -0.33  0.67  1.67  2.67  3.67]
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 10 + (0.0) => [-0.8 -0.6 -0.4 -0.2  0.   0.2  0.4  0.6  0.8]
+        [-5.0, 5.0] / 10 + (0.0) => [-4. -3. -2. -1.  0.  1.  2.  3.  4.]
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 10 + (0.066) => [-0.734 -0.534 -0.334 -0.134  0.066  0.266  0.466  0.666  0.866]
+        [-5.0, 5.0] / 10 + (0.33) => [-3.67 -2.67 -1.67 -0.67  0.33  1.33  2.33  3.33  4.33]
+    ```
+    ### Discretize
+    ```
+    def discretize(sample, grid):
+        """ Discretize a sample as per given grid.
+        
+        INPUTS:
+        ------------
+            sample - (array_like) a single sample from the (original) continuous space.
+            grid - (list of array_like) list of arrays containing split points for each dimension.
+        
+        OUTPUTS:
+        ------------
+            discretized_sample - (array_like) sequence of integers with the same number of dimensions as sample.
+        """
+        
+        return tuple(int(np.digitize(s, g)) for s, g in zip(sample, grid))  # apply along each dimension
+
+
+    def tile_encode(sample, tilings, flatten=False):
+        """Encode given sample using tile-coding.
+        
+        INPUTS:
+        ------------
+            sample - (array_like) a single sample from the (original) continuous space.
+            tilings - (list) list of tilings (grids), each produced by create_tiling_grid().
+            flatten - (bool) If true, flatten the resulting binary arrays into a single long vector.
+
+        OUTPUTS:
+        ------------
+            encoded_sample -(list or array_like) list of binary vectors, one for each tiling, or flattened into one.
+        """
+        
+        encoded_sample = [discretize(sample, grid) for grid in tilings]
+        return np.concatenate(encoded_sample) if flatten else encoded_sample
+
+
+    # Test with some sample values
+    samples = [(-1.2 , -5.1 ),
+            (-0.75,  3.25),
+            (-0.5 ,  0.0 ),
+            ( 0.25, -1.9 ),
+            ( 0.15, -1.75),
+            ( 0.75,  2.5 ),
+            ( 0.7 , -3.7 ),
+            ( 1.0 ,  5.0 )]
+    encoded_samples = [tile_encode(sample, tilings) for sample in samples]
+    print("\nSamples:", repr(samples), sep="\n")
+    print("\nEncoded samples:", repr(encoded_samples), sep="\n")
+
+    RESULT:
+    Samples:
+    [(-1.2, -5.1), (-0.75, 3.25), (-0.5, 0.0), (0.25, -1.9), (0.15, -1.75), (0.75, 2.5), (0.7, -3.7), (1.0, 5.0)]
+
+    Encoded samples:
+    [[(0, 0), (0, 0), (0, 0)], [(1, 8), (1, 8), (0, 7)], [(2, 5), (2, 5), (2, 4)], [(6, 3), (6, 3), (5, 2)], [(6, 3), (5, 3), (5, 2)], [(9, 7), (8, 7), (8, 7)], [(8, 1), (8, 1), (8, 0)], [(9, 9), (9, 9), (9, 9)]]
+    ```
+    ### Q-Table
+    ```
+    class QTable:
+        """ Simple Q-table
+        """
+
+        def __init__(self, state_size, action_size):
+            """ Initialize Q-table.
+            
+            INPUTS:
+            ----------
+                state_size - (tuple) Number of discrete values along each dimension of state space.
+                action_size - (int) Number of discrete actions in action space.
+            """
+            self.state_size = state_size
+            self.action_size = action_size
+
+            # Create Q-table, initialize all Q-values to zero
+            # Note: If state_size = (9, 9), action_size = 2, q_table.shape should be (9, 9, 2)
+            self.q_table = np.zeros(shape=(self.state_size + (self.action_size,)))
+            print("QTable(): size =", self.q_table.shape)
+
+
+    class TiledQTable:
+        """ Composite Q-table with an internal tile coding scheme
+        """
+        
+        def __init__(self, low, high, tiling_specs, action_size):
+            """ Create tilings and initialize internal Q-table(s).
+            
+            INPUTS:
+            ------------
+                low - (array_like) lower bounds for each dimension of the continuous space.
+                high - (array_like) upper bounds for each dimension of the continuous space.
+                tiling_specs - (list of tuples) sequence of (bins, offsets) to be passed to create_tilings() along with low, high.
+                action_size - (int) Number of discrete actions in action space.
+                
+            OUTPUTS:
+            ------------
+                None
+            """
+            self.tilings = create_tilings(low, high, tiling_specs)
+            self.state_sizes = [tuple(len(splits)+1 for splits in tiling_grid) for tiling_grid in self.tilings]
+            self.action_size = action_size
+            self.q_tables = [QTable(state_size, self.action_size) for state_size in self.state_sizes]
+            print("TiledQTable(): no. of internal tables = ", len(self.q_tables))
+        
+        def get(self, state, action):
+            """ Get Q-value for given <state, action> pair.
+            
+            INPUTS:
+            ----------
+                state - (array_like) Vector representing the state in the original continuous space.
+                action - (int) Index of desired action.
+            
+            OUTPUTS:
+            -------
+                value - (float) Q-value of given <state, action> pair, averaged from all internal Q-tables.
+            """
+            # Encode state to get tile indices
+            encoded_state = tile_encode(state, self.tilings)
+            
+            # Retrieve q-value for each tiling, and return their average
+            value = 0.0
+            for idx, q_table in zip(encoded_state, self.q_tables):
+                value += q_table.q_table[tuple(idx + (action,))]
+            value /= len(self.q_tables)
+            return value
+        
+        def update(self, state, action, value, alpha=0.1):
+            """ Soft-update Q-value for given <state, action> pair to value.
+            
+                Instead of overwriting Q(state, action) with value, perform soft-update:
+                    Q(state, action) = alpha * value + (1.0 - alpha) * Q(state, action)
+            
+            INPUTS:
+            ----------
+                state - (array_like) Vector representing the state in the original continuous space.
+                action - (int) Index of desired action.
+                value - (float) desired Q-value for <state, action> pair.
+                alpha  - (float) Update factor to perform soft-update, in [0.0, 1.0] range.
+            """
+            # Encode state to get tile indices
+            encoded_state = tile_encode(state, self.tilings)
+            
+            # Update q-value for each tiling by update factor alpha
+            for idx, q_table in zip(encoded_state, self.q_tables):
+                value_ = q_table.q_table[tuple(idx + (action,))]  # current value
+                q_table.q_table[tuple(idx + (action,))] = alpha * value + (1.0 - alpha) * value_
+
+
+    # Test with a sample Q-table
+    tq = TiledQTable(low, high, tiling_specs, 2)
+    s1 = 3; s2 = 4; a = 0; q = 1.0
+    print("[GET]    Q({}, {}) = {}".format(samples[s1], a, tq.get(samples[s1], a)))  # check value at sample = s1, action = a
+    print("[UPDATE] Q({}, {}) = {}".format(samples[s2], a, q)); tq.update(samples[s2], a, q)  # update value for sample with some common tile(s)
+    print("[GET]    Q({}, {}) = {}".format(samples[s1], a, tq.get(samples[s1], a)))  # check value again, should be slightly updated
+
+    RESULT:
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 10 + (-0.066) => [-0.866 -0.666 -0.466 -0.266 -0.066  0.134  0.334  0.534  0.734]
+        [-5.0, 5.0] / 10 + (-0.33) => [-4.33 -3.33 -2.33 -1.33 -0.33  0.67  1.67  2.67  3.67]
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 10 + (0.0) => [-0.8 -0.6 -0.4 -0.2  0.   0.2  0.4  0.6  0.8]
+        [-5.0, 5.0] / 10 + (0.0) => [-4. -3. -2. -1.  0.  1.  2.  3.  4.]
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 10 + (0.066) => [-0.734 -0.534 -0.334 -0.134  0.066  0.266  0.466  0.666  0.866]
+        [-5.0, 5.0] / 10 + (0.33) => [-3.67 -2.67 -1.67 -0.67  0.33  1.33  2.33  3.33  4.33]
+    QTable(): size = (10, 10, 2)
+    QTable(): size = (10, 10, 2)
+    QTable(): size = (10, 10, 2)
+    TiledQTable(): no. of internal tables =  3
+    [GET]    Q((0.25, -1.9), 0) = 0.0
+    [UPDATE] Q((0.15, -1.75), 0) = 1.0
+    [GET]    Q((0.25, -1.9), 0) = 0.06666666666666667
+    ```
+    ### Q-Learning 
+    ```
+    class QLearningAgent:
+        """ Q-Learning agent that can act on a continuous state space by discretizing it.
+        """
+
+        def __init__(self, env, tq, alpha=0.02, gamma=0.99,
+                    epsilon=1.0, epsilon_decay_rate=0.9995, min_epsilon=.01, seed=0):
+            """ Initialize variables, create grid for discretization.
+            
+                INPUTS:
+                ------------
+                    env - (OpenAI gym instance) instance of an OpenAI Gym environment
+                    tq
+                    alpha - (float) step-size parameter for the update step (constant alpha concept), default=0.02
+                    gamma - (float) discount rate. It must be a value between 0 and 1, inclusive, default=0.99
+                    epsilon - (float) probability with which the agent selects an action uniformly at random
+                    epsilon_decay_rate - (float) decay rate for epsilon, default=0.9995
+                    min_epsilon - (float) min for epsilon, default=.01
+                    seed - (int) seed for random, default=0
+                
+                OUTPUTS:
+                ------------
+                    None
+            """
+            # Environment info
+            self.env = env
+            self.tq = tq 
+            self.state_sizes = tq.state_sizes           # list of state sizes for each tiling
+            self.action_size = self.env.action_space.n  # 1-dimensional discrete action space
+            self.seed = np.random.seed(seed)
+            print("Environment:", self.env)
+            print("State space sizes:", self.state_sizes)
+            print("Action space size:", self.action_size)
+            
+            # Learning parameters
+            self.alpha = alpha  # learning rate
+            self.gamma = gamma  # discount factor
+            self.epsilon = self.initial_epsilon = epsilon  # initial exploration rate
+            self.epsilon_decay_rate = epsilon_decay_rate   # how quickly should we decrease epsilon
+            self.min_epsilon = min_epsilon
+
+        def reset_episode(self, state):
+            """ Reset variables for a new episode.
+                
+                INPUTS:
+                ------------
+                    state - (1D numpy array) state[0] - position, state[1] - velocity, continuous entries
+                
+                OUTPUTS:
+                ------------
+                    self.last_action - (int) number for certain action
+                
+            
+            """
+            # Gradually decrease exploration rate
+            self.epsilon *= self.epsilon_decay_rate
+            self.epsilon = max(self.epsilon, self.min_epsilon)
+            
+            self.last_state = state
+            Q_s = [self.tq.get(state, action) for action in range(self.action_size)]
+            self.last_action = np.argmax(Q_s)
+            return self.last_action
+        
+        def reset_exploration(self, epsilon=None):
+            """ Reset exploration rate used when training.
+            
+                INPUTS:
+                ------------
+                    epsilon - (float) probability with which the agent selects an action uniformly at random
+                
+                OUTPUTS:
+                ------------
+                    no direct
+                    self.epsilon - (float) reset epsilon if epsilon is not None 
+            """
+            self.epsilon = epsilon if epsilon is not None else self.initial_epsilon
+
+        def act(self, state, reward=None, done=None, mode='train'):
+            """ Pick next action and update internal Q table (when mode != 'test').
+            
+                INPUTS:
+                ------------
+                    state - (1D numpy array) state[0] - position, state[1] - velocity
+                    reward - (float) rewrd for next step to update Q-table
+                    done - (bool) if True episode is over, default=None 
+                    mode - (string) 'train' or 'test'
+                
+                OUTPUTS:
+                ------------
+                    action - (int) based on Sarsamax return corresponding action
+            
+            """
+            Q_s = [self.tq.get(state, action) for action in range(self.action_size)]
+            # Pick the best action from Q table
+            greedy_action = np.argmax(Q_s)
+            if mode == 'test':
+                # Test mode: Simply produce an action
+                action = greedy_action
+            else:
+                # Train mode (default): Update Q table, pick next action
+                # Note: We update the Q table entry for the *last* (state, action) pair with current state, reward
+                value = reward + self.gamma * max(Q_s)
+                self.tq.update(self.last_state, self.last_action, value, self.alpha)
+
+                # Exploration vs. exploitation
+                do_exploration = np.random.uniform(0, 1) < self.epsilon
+                if do_exploration:
+                    # Pick a random action
+                    action = np.random.randint(0, self.action_size)
+                else:
+                    # Pick the greedy action
+                    action = greedy_action
+
+            # Roll over current state, action for next step
+            self.last_state = state
+            self.last_action = action
+            return action
+    ```
+    ```
+    n_bins = 5
+    bins = tuple([n_bins]*env.observation_space.shape[0])
+    offset_pos = (env.observation_space.high - env.observation_space.low)/(3*n_bins)
+
+    tiling_specs = [(bins, -offset_pos),
+                    (bins, tuple([0.0]*env.observation_space.shape[0])),
+                    (bins, offset_pos)]
+
+    tq = TiledQTable(env.observation_space.low, 
+                    env.observation_space.high, 
+                    tiling_specs, 
+                    env.action_space.n)
+    agent = QLearningAgent(env, tq)
+
+    RESULT:
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 5 + (-0.13333334028720856) => [-0.733 -0.333  0.067  0.467]
+        [-1.0, 1.0] / 5 + (-0.13333334028720856) => [-0.733 -0.333  0.067  0.467]
+        [-1.0, 1.0] / 5 + (-0.13333334028720856) => [-0.733 -0.333  0.067  0.467]
+        [-1.0, 1.0] / 5 + (-0.13333334028720856) => [-0.733 -0.333  0.067  0.467]
+        [-12.566370964050293, 12.566370964050293] / 5 + (-1.675516128540039) => [-9.215 -4.189  0.838  5.864]
+        [-28.274333953857422, 28.274333953857422] / 5 + (-3.769911289215088) => [-20.735  -9.425   1.885  13.195]
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 5 + (0.0) => [-0.6 -0.2  0.2  0.6]
+        [-1.0, 1.0] / 5 + (0.0) => [-0.6 -0.2  0.2  0.6]
+        [-1.0, 1.0] / 5 + (0.0) => [-0.6 -0.2  0.2  0.6]
+        [-1.0, 1.0] / 5 + (0.0) => [-0.6 -0.2  0.2  0.6]
+        [-12.566370964050293, 12.566370964050293] / 5 + (0.0) => [-7.54  -2.513  2.513  7.54 ]
+        [-28.274333953857422, 28.274333953857422] / 5 + (0.0) => [-16.965  -5.655   5.655  16.965]
+    Tiling: [<low>, <high>] / <bins> + (<offset>) => <splits>
+        [-1.0, 1.0] / 5 + (0.13333334028720856) => [-0.467 -0.067  0.333  0.733]
+        [-1.0, 1.0] / 5 + (0.13333334028720856) => [-0.467 -0.067  0.333  0.733]
+        [-1.0, 1.0] / 5 + (0.13333334028720856) => [-0.467 -0.067  0.333  0.733]
+        [-1.0, 1.0] / 5 + (0.13333334028720856) => [-0.467 -0.067  0.333  0.733]
+        [-12.566370964050293, 12.566370964050293] / 5 + (1.675516128540039) => [-5.864 -0.838  4.189  9.215]
+        [-28.274333953857422, 28.274333953857422] / 5 + (3.769911289215088) => [-13.195  -1.885   9.425  20.735]
+    QTable(): size = (5, 5, 5, 5, 5, 5, 3)
+    QTable(): size = (5, 5, 5, 5, 5, 5, 3)
+    QTable(): size = (5, 5, 5, 5, 5, 5, 3)
+    TiledQTable(): no. of internal tables =  3
+    Environment: <TimeLimit<AcrobotEnv<Acrobot-v1>>>
+    State space sizes: [(5, 5, 5, 5, 5, 5), (5, 5, 5, 5, 5, 5), (5, 5, 5, 5, 5, 5)]
+    Action space size: 3
+    ```
+    ### Start Training 
+    ```
+    def run(agent, env, num_episodes=10000, mode='train'):
+        """ Run agent in given reinforcement learning environment and return scores.
+        
+            INPUTS:
+            ------------
+                agent - (instance of class QLearningAgent) 
+                env - (OpenAI gym instance) instance of an OpenAI Gym environment
+                num_episodes - (int) number of episodes
+                mode - (string) - mode train or test
+            
+            OUTPUTS:
+            ------------
+                scores - (list) list of total reward for each episode
+        
+        """
+        scores = []
+        max_avg_score = -np.inf
+        for i_episode in range(1, num_episodes+1):
+            # Initialize episode
+            state = env.reset()
+            action = agent.reset_episode(state)
+            total_reward = 0
+            done = False
+
+            # Roll out steps until done
+            while not done:
+                state, reward, done, info = env.step(action)
+                total_reward += reward
+                action = agent.act(state, reward, done, mode)
+
+            # Save final score
+            scores.append(total_reward)
+
+            # Print episode stats
+            if mode == 'train':
+                if len(scores) > 100:
+                    avg_score = np.mean(scores[-100:])
+                    if avg_score > max_avg_score:
+                        max_avg_score = avg_score
+                if i_episode % 100 == 0:
+                    print("\rEpisode {}/{} | Max Average Score: {}".format(i_episode, num_episodes, max_avg_score), end="")
+                    sys.stdout.flush()
+        return scores
+
+    scores = run(agent, env)
+
+    RESULT:
+    Episode 10000/10000 | Max Average Score: -240.44
+    ```
+    ### Plot
+    ```
+    def plot_scores(scores, rolling_window=100):
+        """Plot scores and optional rolling mean using specified window."""
+        plt.plot(scores); plt.title("Scores");
+        rolling_mean = pd.Series(scores).rolling(rolling_window).mean()
+        plt.plot(rolling_mean);
+        return rolling_mean
+
+    rolling_mean = plot_scores(scores)
+    ```
+    ![image11]
+
+
+## Coarse Coding <a name="coarse_coding"></a>
+- Like Tile coding, but uses a sparser set of features to encode the state space.
+- Take a state S, mark all the circles that it belongs to.
+- Bit vector with a one for those circles and 0 for the rest.
+- = sparse coding representation of the state
+- Smaller circles results in 
+    - less generalization across the space
+    - learning takes longer
+    - greater effective resolution
+
+- Larger circles 
+    - more generalization,
+    - smoother value function.
+    - fewer large circles to cover the space,
+    - lower resolution.
+
+    ![image9]
+
+
+## Function Approximation <a name="function_approximation"></a>
+- True state value function **v<sub>π</sub>(s)**, or action value function **q<sub>π</sub>(s,a)** is typically smooth and continuous over the entire space.
+- Capturing this completely is practically infeasible except for some very simple problems.
+- Best approach is function approximation: 
+    - Introduce a parameter vector W that shapes the function.
+    - Reduce to tweaki this parameter vector to get the desired approximation.
+    - The approximating function can either map a state to its value, or a state action pair to the corresponding q value.
+    - Other approach: map from one state to a number of different q values, one for each action all at once. Useful for q learning.
+
+- In general, define a transformation that converts any given state s
+into a feature vector X S. 
+- Dot Product. Multiply each feature with the corresponding weight, and sum it up.
+- = linear function approximation
+
+    ![image10]
 
 
 
