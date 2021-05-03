@@ -35,19 +35,18 @@
 
 ## Discrete vs. Continuous Spaces <a name="discrete_cont"></a>
 ### Discrete Spaces
-- Discrete spaces allow us to represent any function of states and actions as a **dictionary** or **look-up table**.
-- Consider the state **value function V** which is a **mapping** from the **set of states** to a **real number**.
-- Similarly, consider **the action value function Q** that **maps** every **state action pair** to a **real number**.
-- Discreet spaces are also critical to a number of reinforcement learning **algorithms**. For instance, in **value iteration**, the internal for loop goes over each state as one by one, and updates the corresponding value estimate V of s. This is impossible if you have an infinite state space. The loop would go on forever 
-- Model-free methods like Q-learning assume discrete spaces as well.
+- States and actions as a **dictionary** or **look-up table**.
+- Examples: 
+    - **value function V** as a **mapping** from the **set of states** to a **real number**.
+    -  **the action value function Q** as s **mapping** of a **state action pair** to a **real number**.
+    - **value iteration**, the internal for loop goes over each state as one by one, and updates the corresponding value estimate V of s. 
+    - **Model-free methods** like Q-learning assume discrete spaces as well.
 
     ![image3]
 
 ### Continuous Spaces <a name="continuous_spaces"></a>
-- A contnuous space can take a range of values, typically real numbers.
 - Discrete visualization of states: real number, bar chart
-- Contnuous visualization of states:  vectore, density plot 
-- Consider: Most physical actions in nature are continuous 
+- Continuous visualization of states: vector, density plot  
 - Dealing with contnuous spaces: **Discretization** and **Function Approximation**
 
     ![image4]
