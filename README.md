@@ -1020,9 +1020,7 @@ estimate the parameter vector w.
 - At the heart of this approach is our feature transformation.
 - Each element of the feature vector can be produced by a separate function,
 which can be non-linear. These functions are called Kernel Functions or Basis Functions.
-- Radial Basis Functions are kernel Functions: The closer the state is to the center of the blob, the higher the response returned by the function. The response falls off gradually with the radius. Mathematically, this can be achieved by associating
-a Gaussian Kernel with each Basis Function with its mean serving
-as the center of the blob and standard deviation determining how sharply or smoothly the response falls off.
+- Radial Basis Functions are kernel Functions: The closer the state is to the center of the blob, the higher the response returned by the function. The response falls off gradually with the radius. Mathematically, this can be achieved by associating a Gaussian Kernel with each Basis Function with its mean serving as the center of the blob and standard deviation determining how sharply or smoothly the response falls off.
 
     ![image14]
 
