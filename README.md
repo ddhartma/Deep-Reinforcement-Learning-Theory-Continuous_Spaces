@@ -11,7 +11,7 @@
 [image11]: assets/tile_coding_plot.png "image11"
 [image12]: assets/gradient_descent.png "image12"
 [image13]: assets/action_vec_approx.png "image13"
-[image14]: assets/feature_transformation.png "image14"
+[image14]: assets/kernel_func.png "image14"
 [image15]:  assets/non_lin_func_approx.png "image15"
 
 # Deep Reinforcement Learning Theory - RL in Continuous Spaces
@@ -1023,6 +1023,8 @@ which can be non-linear. These functions are called Kernel Functions or Basis Fu
 - Radial Basis Functions are kernel Functions: The closer the state is to the center of the blob, the higher the response returned by the function. The response falls off gradually with the radius. Mathematically, this can be achieved by associating
 a Gaussian Kernel with each Basis Function with its mean serving
 as the center of the blob and standard deviation determining how sharply or smoothly the response falls off.
+
+    ![image14]
 
 ## Nonlinear Function approximation <a name="nonlin_func_approx"></a> 
 - Imagine a non-linear combination of the feature values.
