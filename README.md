@@ -9,6 +9,10 @@
 [image9]: assets/coarse_coding.png "image9"
 [image10]: assets/function_approximation.png "image10"
 [image11]: assets/tile_coding_plot.png "image11"
+[image12]: assets/gradient_descent.png "image12"
+[image13]: assets/action_vec_approx.png "image13"
+[image14]: assets/feature_transformation.png "image14"
+[image15]:  assets/non_lin_func_approx.png "image15"
 
 # Deep Reinforcement Learning Theory - RL in Continuous Spaces
 
@@ -20,13 +24,23 @@
 - [Tile Coding](#tile_coding)
 - [Coarse Coding](#coarse_coding)
 - [Function Approximation](#function_approximation)
+- [Linear Function Approximation](#lin_func_approx)
+- [Kernel Functions](#kernel_functions)
+- [Nonlinear Function approximation](#nonlin_func_approx)
 - [Acknowledgments](#Acknowledgments)
 - [Further Links](#Further_Links)
-
 
 ## Introduction <a name="what_is_reinforcement"></a>
 - Reinforcement learning is **learning** what to do — **how to map situations to actions** — so as **to maximize a numerical reward** signal. The learner is not told which actions to take, but instead must discover which actions yield the most reward by trying them. (Sutton and Barto, [Reinforcement Learning: An Introduction](http://incompleteideas.net/book/the-book.html))
 - Deep reinforcement learning refers to approaches where the knowledge is represented with a deep neural network
+
+- Real world problems are normally continuous
+- In order to handle those spaces to mechanisms are usefuls
+    - **Discretize** continuous spaces
+    - Directly try to approximate desired value functions (**Function approximation** of state-value and action-value functions) 
+        - feature transformation
+        - non-linear feature transforms like radial basis functions
+        - non-linear combinations of features, apply an activation function (neural networks)
 
 ## Problem analysis <a name="Setup_Instructions"></a>
 - So far all reinforcement learning environments were implemented where the number of states and actions is limited. 
@@ -973,13 +987,50 @@ coarsely identified by the tiles that it activates.
     - The approximating function can either map a state to its value, or a state action pair to the corresponding q value.
     - Other approach: map from one state to a number of different q values, one for each action all at once. Useful for q learning.
 
-- In general, define a transformation that converts any given state s
-into a feature vector X S. 
+- In general, define a transformation that converts any given state **s**
+into a feature vector **x(s)**. 
 - Dot Product. Multiply each feature with the corresponding weight, and sum it up.
 - = linear function approximation
 
     ![image10]
 
+## Linear Function Approximation <a name="lin_func_approx"></a> 
+- Let's take a closer look at linear function approximation and how to
+estimate the parameter vector w. 
+- Initialize weights **w** randomly and compute state value **v(s,w)**
+- Use gradient descent to find the optimal parameter vector.
+- Note that since **v** hat is a linear function, its derivative with respect to **w** is simply the feature vector **x(s)**.
+- Minimize the objective function. --> gradient descent --> chain rule
+- If we are able to sample enough states, we can come close to the expected value.
+
+    ![image12]
+
+- Action-value function: use a feature transformation that utilizes both the state and action.
+- Use the same gradient descent method as we did for the state-value function.
+- Finally, compute all of the action-values at once --> use **weight matrix** instead of **weight vector**.
+- Each column of the matrix emulates a separate linear function
+- If we have a problem domain with a continuous state space, but a discrete action space which is very common, we can easily select the action with the maximum value.
+- If our action space is also continuous, then this form allows us to output more than a single value at once.
+
+    ![image13]
+
+
+## Kernel Functions <a name="kernel_functions"></a>
+- A simple extension to linear function approximation can help us capture non-linear relationships.
+- At the heart of this approach is our feature transformation.
+- Each element of the feature vector can be produced by a separate function,
+which can be non-linear. These functions are called Kernel Functions or Basis Functions.
+- Radial Basis Functions are kernel Functions: The closer the state is to the center of the blob, the higher the response returned by the function. The response falls off gradually with the radius. Mathematically, this can be achieved by associating
+a Gaussian Kernel with each Basis Function with its mean serving
+as the center of the blob and standard deviation determining how sharply or smoothly the response falls off.
+
+## Nonlinear Function approximation <a name="nonlin_func_approx"></a> 
+- Imagine a non-linear combination of the feature values?
+- Such a non-linear function is generally called an activation
+function.
+- We can iteratively update the parameters of any such function using gradient descent.
+
+    ![image15]
 
 
 
