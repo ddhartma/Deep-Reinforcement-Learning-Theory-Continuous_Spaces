@@ -1025,10 +1025,10 @@ a Gaussian Kernel with each Basis Function with its mean serving
 as the center of the blob and standard deviation determining how sharply or smoothly the response falls off.
 
 ## Nonlinear Function approximation <a name="nonlin_func_approx"></a> 
-- Imagine a non-linear combination of the feature values?
+- Imagine a non-linear combination of the feature values.
 - Such a non-linear function is generally called an activation
 function.
-- We can iteratively update the parameters of any such function using gradient descent.
+- Iteratively update the parameters of any such function using gradient descent.
 
     ![image15]
 
