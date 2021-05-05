@@ -27,6 +27,7 @@
 - [Linear Function Approximation](#lin_func_approx)
 - [Kernel Functions](#kernel_functions)
 - [Nonlinear Function approximation](#nonlin_func_approx)
+- [Setup Instructions](#Setup_Instructions)
 - [Acknowledgments](#Acknowledgments)
 - [Further Links](#Further_Links)
 
